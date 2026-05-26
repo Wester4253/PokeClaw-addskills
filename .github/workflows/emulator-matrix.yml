@@ -130,10 +130,18 @@ jobs:
           disable-animations: true
           script: |
             set -e
-            APK=$(find apk -name '*.apk' | head -1)
+            # actions/download-artifact@v4 preserves directory structure for path-glob uploads,
+            # so the .apk may be under apk/, apk/app/build/outputs/apk/debug/, etc.
             echo "::group::APK info"
-            echo "Using APK: $APK"
-            ls -la apk/
+            echo "Searching for APK under apk/ ..."
+            find apk -type f -name '*.apk' || echo "no .apk found anywhere under apk/"
+            APK=$(find apk -type f -name '*.apk' | head -1)
+            if [ -z "$APK" ] || [ ! -f "$APK" ]; then
+              echo "::error::No APK found under apk/. download-artifact may have placed it elsewhere or upload failed."
+              ls -laR apk/ || true
+              exit 1
+            fi
+            echo "Using APK: $APK ($(stat -c%s "$APK") bytes)"
             echo "::endgroup::"
 
             echo "::group::Device info"
