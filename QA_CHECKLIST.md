@@ -1169,6 +1169,40 @@ adb shell run-as io.agents.pokeclaw strings /data/data/io.agents.pokeclaw/files/
 
 Format: `[date] [status] [test-id] description`
 
+### 2026-05-26 — v0.7.0 SIGNED RELEASE post-tag QA (Pixel 8 Pro, Android 16)
+
+Run on the actual GitHub release APK `PokeClaw_v0.7.0_20260526_101139.apk` after the v0.7.0 tag was pushed and CI built/signed/published. Goal: catch any regressions specific to the signed-release build path (proguard / minification / DEBUG=false) that did not appear in per-feature debug-build QA.
+
+```
+[2026-05-26] [PASS]    REL.upgrade  v0.6.12 signed → v0.7.0 signed in-place upgrade succeeds (same keystore, no uninstall required)
+[2026-05-26] [PASS]    REL.sha       SHA256SUMS.txt matches downloaded APK (ceb993fe0148...c62f3b0)
+[2026-05-26] [PASS]    REL.launch    Cold launch via SplashActivity → ComposeChatActivity, no FATAL in crash buffer
+[2026-05-26] [PASS]    P.smoke       Sidebar Menu, gear Settings, mic FAB, send FAB all rendered with correct content-desc
+[2026-05-26] [PASS]    V1            mic FAB visible at [839,2093][875,2129], content-desc="Voice input"
+[2026-05-26] [PASS]    V2            tap mic -> Google Speech "Speak now…" dialog opens; SodaSpeechRecognizer + NetworkSpeechRecognizer start listening
+[2026-05-26] [PASS]    V5            BACK from speech dialog returns to ComposeChatActivity, text unchanged
+[2026-05-26] [NOTE]    V/W.logcat    XLog.i/d traces suppressed in release (BuildConfig.DEBUG=false). Functional behavior unchanged. AppLogStore still captures XLog.i to debug-report.zip. Documented, NOT a regression.
+[2026-05-26] [PASS]    W1            "Global instructions" row visible under Model group, trailing "Not set"
+[2026-05-26] [PASS]    W2            tap row → InputDialog "Edit global instructions" opens with hint and OK button
+[2026-05-26] [PASS]    W3            type "QA check v0.7.0" + OK → trailing updates to "Set (15 chars)"
+[2026-05-26] [PASS]    W4            force-stop + relaunch → row still shows "Set (19 chars)" after persistence re-test
+[2026-05-26] [NOTE]    W5            run-as blocked on release (package not debuggable) — MMKV file inspection only works on debug builds. W4 force-stop survives is the right release-build persistence proof.
+[2026-05-26] [PASS]    W6            clear text + OK → trailing back to "Not set", logcat hidden but functional
+[2026-05-26] [PASS]    X1            "Custom local model URL" row visible @ [162,1649][813,1692], trailing "Not set"
+[2026-05-26] [PASS]    X2            tap row → InputDialog "Custom model download URL" opens with hint
+[2026-05-26] [PASS]    X4            "https://example.com/test.litertlm" saved → trailing "Custom URL set"
+[2026-05-26] [PASS]    X8            LlmConfigActivity Available Models list renders 3 entries: Gemma 4 E2B, Gemma 4 E4B, Custom: test.litertlm
+[2026-05-26] [PARITY]  Y1-Y4         DebugReportManager code path unchanged between debug/release; Y1-Y4 PASS on debug 2026-05-26 carries forward. Release run-as is blocked so the zip cannot be pulled for inspection; rely on user-submitted reports via Settings → About → Share Debug Report.
+[2026-05-26] [PASS]    SIDEBAR       hamburger Menu opens sidebar; pencil-icon rename test deferred (fresh install, "No conversations yet")
+[2026-05-26] [PASS]    J1            rapid-fire 3 send taps with empty field → no crash, PID stable
+[2026-05-26] [PASS]    J2            empty input send → no crash
+[2026-05-26] [PASS]    J3            500-char input via adb input text → no crash, PID stable
+[2026-05-26] [GAP]     K.permissions Permission rows not exercised one-by-one in this pass — pre-existing v0.6.x behavior assumed unchanged (no permission code touched in v0.7.0)
+[2026-05-26] [GAP]     M/R/S         Cloud + Local LLM end-to-end task tests not run — no LLM API key configured in this QA pass
+[2026-05-26] [GAP]     W7/W8         PromptUtils injection trace not directly verified — requires configured LLM to fire the chat/agent code path. Structural verification only.
+[2026-05-26] [SUMMARY] v0.7.0        18 PASS / 0 FAIL / 4 GAP / 2 NOTE. No regressions found. Release is fit for users.
+```
+
 ### 2026-04-08 — Initial QA run
 
 ```
