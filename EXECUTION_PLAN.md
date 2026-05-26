@@ -76,12 +76,7 @@ After 4 tickets done:
 
 Acquirer reads these to understand what they'd be buying:
 
-- [ ] **ADR-001**: Why 21 tools + 13 rules (generic-Android-first architecture)
-- [ ] **ADR-002**: Why Java Playbooks closed-source vs MD playbooks open (business model rationale)
-- [ ] **ADR-003**: Why on-device Gemma + cloud fallback (privacy + capability tradeoff)
-- [ ] **ADR-004**: Why Accessibility Service architecture (vs root, vs ADB pairing)
-
-Store in `docs/architecture/`. Link from STRATEGY.md.
+- [x] **ARCHITECTURE_DECISIONS.md** (2026-05-26): single doc covering D1–D8 — on-device LiteRT default, 21 tools × 13 rules, Java vs MD playbooks, AccessibilityService choice, MMKV+markdown data layer, community-delegated cross-OEM, provider-agnostic cloud, same-day issue reply. Linked from STRATEGY.md.
 
 ### Release packaging
 

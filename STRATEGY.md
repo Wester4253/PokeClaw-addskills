@@ -1,7 +1,8 @@
 # PokeClaw — Moat, Window, Acquisition Thesis
 
 > 內部戰略文件。記錄 acquisition target、why-this-survives-AI、reframe community model。
-> Tactical state 喺 `CLAUDE.local.md`，feature backlog 喺 `BACKLOG.md`。
+> Tactical state 喺 `CLAUDE.local.md`，feature backlog 喺 `BACKLOG.md`，execution mapping 喺 `EXECUTION_PLAN.md`。
+> External-reader architecture summary 喺 `docs/ARCHITECTURE_DECISIONS.md`（write for tech-due-diligence engineer at potential acquirer）。
 
 ---
 
