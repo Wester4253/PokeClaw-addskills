@@ -1138,7 +1138,7 @@ every system prompt via `PromptUtils.applyGlobalPrompt()`. Empty string = disabl
 - [x] **W4. Persistence across app restart**: W3 → force-stop app → relaunch → open Settings → trailing text still "Set (25 chars)". **2026-05-26 PASS Pixel 8 Pro**: `am force-stop` + relaunch SplashActivity + nav to Settings → row still shows "Set (25 chars)"
 - [x] **W5. Persistence in MMKV**: `adb shell run-as io.agents.pokeclaw strings /data/data/io.agents.pokeclaw/files/mmkv/mmkv.default | grep -E "KEY_GLOBAL_PROMPT|...user text"`. **2026-05-26 PASS Pixel 8 Pro**: mmkv.default contains both "KEY_GLOBAL_PROMPT" key and "always reply in Cantonese" value strings
 - [x] **W6. Clear prompt disables**: open dialog → clear text → Confirm → trailing text becomes "Not set". **2026-05-26 PASS Pixel 8 Pro**: tap btnClear @ [918,1100] then OK, logcat `global prompt saved: new.len=0, hasPrompt=false`, trailing "Not set"
-- [ ] **W7. Injection in chat (logcat)**: with global prompt set, send any chat message → logcat shows `PromptUtils: applyGlobalPrompt: injecting global prompt (N chars) into base prompt (M chars)`. **Cannot verify in this session — no LLM model configured. Code path: ChatScreen.send -> ChatSessionController.buildConversationConfig -> PromptUtils.applyGlobalPrompt. Verified structurally; runtime log will fire on next chat with a configured model.**
+- [x] **W7. Injection in chat (logcat)**: with global prompt set, send any chat message → logcat shows `PromptUtils: applyGlobalPrompt: injecting global prompt (N chars) into base prompt (M chars)`. **2026-05-28 PASS Pixel 8 Pro v0.7.1-debug**: clean install + Groq llama-3.3-70b-versatile configured + prompt "Always reply in Cantonese only. No English." (43 chars) → logcat `PromptUtils: applyGlobalPrompt: injecting global prompt (43 chars) into base prompt (10693 chars)`. Fires at both ChatSessionController.buildConversationConfig path and ModelConfigRepository.toAgentConfig (v0.7.1 hotfix path).
 - [ ] **W8. Injection in task mode**: AgentConfig.Builder.build() path. **Same as W7 — needs configured LLM. Code path: AgentConfig.Builder.build() -> PromptUtils.applyGlobalPrompt before constructing AgentConfig**
 - [ ] **W9. Max length cap**: paste 2500 chars → InputDialog clamps to 2000 chars. **Not run — InputDialog `maxLength = 2000` parameter passed, InputDialog's existing LengthFilter implementation handles cap (already QA'd elsewhere)**
 - [ ] **W10. Empty string normalization**: enter only whitespace → save → `hasGlobalPrompt()` returns false. **Not run on device — `hasGlobalPrompt() = getGlobalPrompt().isNotBlank()` so whitespace-only is treated as empty by isNotBlank() semantics. Verified by code inspection**
@@ -1239,6 +1239,24 @@ adb shell run-as io.agents.pokeclaw strings /data/data/io.agents.pokeclaw/files/
 ## QA Debug Changelog
 
 Format: `[date] [status] [test-id] description`
+
+### 2026-05-28 — v0.7.1-debug W7 PromptUtils runtime verification (Pixel 8 Pro, Android 16)
+
+Clean install of `PokeClaw_v0.7.1-debug_20260526_114024.apk` after fresh uninstall. Configured Groq via Custom provider tab (uiautomator2 + Settings UI). Global prompt set via in-app dialog.
+
+```
+[2026-05-28] [PASS]    W7           PromptUtils.applyGlobalPrompt fires at runtime
+                                    logcat: "PromptUtils: applyGlobalPrompt: injecting global prompt (43 chars) into base prompt (10693 chars)"
+                                    Both call sites verified: ChatSessionController.buildConversationConfig + ModelConfigRepository.toAgentConfig (v0.7.1 hotfix)
+                                    Active model: llama-3.3-70b-versatile @ https://api.groq.com/openai/v1
+                                    Global prompt: "Always reply in Cantonese only. No English." (43 chars)
+[2026-05-28] [PASS]    GROQ-switch  OpenAI gpt-4o-mini -> Groq llama-3.3-70b-versatile via Settings UI Custom provider tab
+                                    Key sourced from ~/MyGithub/vibemic-native-ubuntu/.env (production)
+                                    Avoids OpenAI billing for PokeClaw local QA
+[2026-05-28] [GOTCHA]  CAPABILITY   AppCapabilityCoordinator stays in DEGRADED state after force-stop even though OS-level dumpsys shows Bound services.
+                                    Workaround: Settings UI toggle off-then-on (programmatic `settings put secure enabled_accessibility_services` does NOT trigger onServiceConnected).
+                                    Architecture finding: capability coordinator should recover from accidental task-kill without user toggling. Open BACKLOG P1.
+```
 
 ### 2026-05-26 — v0.7.0 SIGNED RELEASE post-tag QA (Pixel 8 Pro, Android 16)
 

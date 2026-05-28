@@ -8,6 +8,7 @@ Priority: `P0` = blocks users, fix now. `P1` = next up. `P2` = when we get to it
 
 ## Bugs
 
+- [ ] **P1** AppCapabilityCoordinator does not recover from force-stop: after the OS or any Android task-killer terminates pokeclaw, the in-app `ServiceBindingState` stays in `DEGRADED` even when `dumpsys accessibility` shows `Bound services: PokeClaw`. Programmatic `settings put secure enabled_accessibility_services` and `dumpsys`-level rebind do NOT fire `onServiceConnected`. Only a manual Settings UI toggle off-then-on restores READY. Production users hit by aggressive OEM background-kill (Xiaomi/Samsung) will see "Accessibility service disconnected. Open Settings and toggle it back on." on every restart. Architecture fix: detect Bound services at OS level on chat send and self-heal via internal handshake instead of forcing user back to Settings. **Discovered 2026-05-28 during W7 verification, see QA Debug Changelog**.
 - [ ] **P1** Historical upgrade gap: users on the older public debug signing path still need a one-time uninstall + reinstall because the original public signing key is already lost
 - [ ] **P2** K3-a: Auto-return fires on every service connect, not just user-initiated permission enable
 - [ ] **P2** B2-a: No auto-return to PokeClaw after task completes in another app (e.g., stuck in YouTube)
