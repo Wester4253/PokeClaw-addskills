@@ -13,6 +13,7 @@ import io.agents.pokeclaw.agent.llm.LlmClient
 import io.agents.pokeclaw.agent.llm.LlmClientFactory
 import io.agents.pokeclaw.agent.llm.LlmResponse
 import io.agents.pokeclaw.agent.llm.StreamingListener
+import io.agents.pokeclaw.agent.skill.PromptSkillManager
 import io.agents.pokeclaw.service.ClawAccessibilityService
 import io.agents.pokeclaw.tool.ToolRegistry
 import io.agents.pokeclaw.tool.impl.GetScreenInfoTool
@@ -455,6 +456,7 @@ class DefaultAgentService : AgentService {
         val inAppSearchGuard = InAppSearchGuard.fromTask(rawUserRequest)
         val emailComposeGuard = EmailComposeGuard.fromTask(rawUserRequest)
         val directDeviceDataGuard = DirectDeviceDataGuard.fromTask(rawUserRequest)
+        val promptSkillSection = PromptSkillManager.buildPromptSection(rawUserRequest)
 
         // For local LLM, inject matching playbook into system prompt
         val playbookSection = if (config.provider == LlmProvider.LOCAL) {
@@ -467,6 +469,7 @@ class DefaultAgentService : AgentService {
 
         val fullSystemPrompt = buildString {
             append(basePrompt)
+            append(promptSkillSection)
             append(playbookSection)
             append(inAppSearchGuard.buildPromptSection())
             append(emailComposeGuard.buildPromptSection())

@@ -39,6 +39,7 @@ class ClawApplication : BaseApp() {
         LocalBackendHealth.recoverPendingGpuCrashIfNeeded()
         ToolRegistry.getInstance().registerAllTools(ToolRegistry.DeviceType.MOBILE)
         io.agents.pokeclaw.agent.skill.SkillRegistry.loadBuiltInSkills()
+        io.agents.pokeclaw.agent.skill.PromptSkillManager.loadAll(this)
         io.agents.pokeclaw.agent.PlaybookManager.loadAll(this)
         XLog.e(TAG, "ClawApplication initialized, tools registered: ${ToolRegistry.getInstance().getAllTools().size}")
 

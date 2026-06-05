@@ -1,265 +1,104 @@
-# PokeClaw Skill File Specification v1.0
+# PokeClaw Custom Skill File Specification
 
-## Overview
+PokeClaw supports Claude Code-style Markdown skills for both cloud and local models.
+A skill is a folder containing a `SKILL.md` file with YAML frontmatter followed by
+Markdown instructions.
 
-Skills are predefined playbooks that tell the on-device LLM exactly what steps to follow. Instead of the model guessing which tools to use, a skill provides a recipe. The model follows it.
+## Locations
 
-Skills are written in natural language (Markdown). What you write is what the model sees.
+Built-in skills can be packaged at:
 
-## File Format
-
-**Naming:** `{skill-name}.skill.md`
-**Location:** `assets/skills/` (built-in), `/sdcard/PokeClaw/skills/` (user-created)
-**Encoding:** UTF-8
-
-## Frontmatter
-
-Delimited by `---` lines. Flat key-value pairs only.
-
-```
----
-description: <required> One sentence. Include a trigger example. Shown to the router LLM for skill selection.
-tools: <required> Comma-separated list of PokeClaw tool identifiers this skill uses.
-author: <optional> Name or handle.
-version: <optional> Semver.
----
+```text
+app/src/main/assets/skills/<skill-id>/SKILL.md
 ```
 
-- `description` is what the router LLM sees. Write it to maximize matching accuracy. Include an example trigger phrase after a comma.
-- `tools` must use exact PokeClaw tool identifiers. Unknown tools produce a load-time warning; the skill still loads with valid tools. Zero valid tools = skill skipped.
+User-created skills are loaded from:
 
-## Body
-
-Everything after the closing `---` is injected verbatim into the LLM prompt when this skill is selected.
-
-### Structure
-
-```markdown
-# Skill Name
-
-One sentence summary.
-
-## Steps
-
-1. From the user's request, identify:
-   - **param1**: description (default: value)
-   - **param2**: description
-2. If any required information is unclear, ask the user.
-3. [Action step with inline error handling if critical]
-4. [Action step]
-...
-N. Confirm completion to the user.
-
-## Example
-
-User: "natural language request"
-→ tool_call(args)
-→ tool_call(args)
-→ "Confirmation message"
-
-## If something goes wrong
-
-- If [condition]: [response]
-- If [condition]: [response]
+```text
+/sdcard/Android/data/io.agents.pokeclaw/files/skills/<skill-id>/SKILL.md
+/data/data/io.agents.pokeclaw/files/skills/<skill-id>/SKILL.md
+/sdcard/PokeClaw/skills/<skill-id>/SKILL.md
 ```
 
-### Rules
+The app creates the app-specific skill folders on startup when possible. The
+legacy `/sdcard/PokeClaw/skills` path is supported for ADB/manual installs on
+devices where scoped storage still permits it.
 
-- Target 250-350 tokens. Warn at 400.
-- Steps are numbered and imperative.
-- Step 1 is always parameter extraction. Include defaults.
-- Step 2 is always "ask if unclear."
-- Use natural language references ("the contact," "the specified app"), not template syntax like `{contact}`.
-- Put critical error handling inline with the step. The error section is supplementary.
-- One example recommended. Two max.
+For compatibility with older PokeClaw experiments, single files named
+`<skill-id>.skill.md` are also accepted, but new skills should use the folder
+layout above.
 
-## Routing
-
-On each user message:
-
-1. Runtime builds a routing prompt listing all loaded skills by `description`.
-2. LLM outputs a skill name or "none."
-3. Runtime normalizes output (lowercase, strip whitespace, hyphens = underscores) and matches against loaded skill filenames.
-4. No match → "none" → general conversation mode.
-
-The router handles any language. Gemma 4 is multilingual — a Chinese request matches an English skill description semantically.
-
-### Router Prompt Template
-
-```
-Pick the best skill or "none":
-
-1. send-message: Send a message to a contact, e.g. "text Mom hello on WhatsApp"
-2. monitor-reply: Auto-reply to incoming messages, e.g. "reply to boss for me"
-3. open-app: Open an app, e.g. "open Chrome"
-
-User: "{user_input}"
-Skill:
-```
-
-~250-300 tokens for 10 skills. Model outputs one word.
-
-## Execution
-
-1. Runtime reads the matched skill's `tools` field.
-2. Runtime builds execution prompt: skill body (verbatim) + tool definitions for listed tools only.
-3. Model follows steps using scoped tools.
-4. Rigid step execution for MVP.
-
-## Valid Tool Identifiers
-
-| Tool | Description |
-|------|-------------|
-| `open_app` | Launch an app by name |
-| `tap` | Tap a screen coordinate or element |
-| `type_text` | Enter text into the focused field |
-| `find_element` | Find a UI element by description |
-| `scroll` | Scroll in a direction |
-| `swipe` | Swipe gesture |
-| `send_message` | Full messaging flow |
-| `auto_reply` | Enable auto-reply monitoring |
-| `send_reply` | Reply to a notification |
-| `read_notification` | Read incoming notifications |
-| `set_monitor` | Start monitoring for notifications |
-| `list_skills` | Return list of installed skills |
-| `press_back` | Press the back button |
-| `screenshot` | Capture current screen |
-| `get_screen_info` | Read current UI tree |
-| `finish` | Signal task completion |
-
-## Example Skills
-
-### send-message.skill.md
+## SKILL.md Format
 
 ```markdown
 ---
-description: Send a message to a contact on a messaging app, e.g. "text Mom hello on WhatsApp"
-tools: open_app, tap, type_text, find_element, scroll
+name: Send Message
+description: Use when the user asks to send a text message to a contact in a messaging app.
+allowed-tools: send_message, finish
 ---
 
 # Send Message
 
-Send a text message to a specific contact using a messaging app.
+Send exactly one message to a contact.
 
 ## Steps
 
-1. From the user's request, identify:
-   - **contact**: who to message
-   - **app**: which app to use (default: WhatsApp)
-   - **message**: what to send
-2. If any of these are unclear, ask the user before proceeding.
-3. Use open_app to launch the messaging app.
-4. Find the contact in the chat list. If not found, tell the user.
-5. Tap the contact to open the chat.
-6. Tap the message input field.
-7. Type the message content.
-8. Tap the send button. If not found, tell the user.
-9. Confirm: "Message sent to [contact] on [app]."
-
-## Example
-
-User: "Tell Mom I'll be late on WhatsApp"
-→ open_app("WhatsApp")
-→ find Mom → tap
-→ tap message field → type "I'll be late"
-→ tap send
-→ "Message sent to Mom on WhatsApp."
-
-## If something goes wrong
-
-- If the app is not installed: tell the user.
-- If the contact is not found: ask the user to check the name.
-- If the send button can't be found: tell the user the app layout might have changed.
+1. Identify the contact, app, and message from the user's request.
+2. If any required detail is unclear, ask the user.
+3. Use `send_message` with the identified contact, app, and message.
+4. Use `finish` to confirm what was sent.
 ```
 
-### monitor-reply.skill.md
+## Frontmatter
 
-```markdown
----
-description: Watch for incoming messages and auto-reply, e.g. "auto-reply to my boss saying I'm in a meeting"
-tools: auto_reply, finish
----
+Required:
 
-# Monitor and Auto-Reply
+- `description`: A clear trigger description. The runtime uses this to decide
+  whether to include the skill for the current request.
 
-Watch for incoming messages from a contact and automatically reply using the on-device LLM.
+Recommended:
 
-## Steps
+- `name`: Human-readable skill name. If omitted, PokeClaw uses the folder name.
+- `allowed-tools`: Comma-separated or YAML-list tool names the skill expects.
 
-1. From the user's request, identify:
-   - **contact**: who to watch for
-   - **app**: which messaging app (default: WhatsApp)
-2. If the contact is unclear, ask the user.
-3. Use auto_reply to enable monitoring for the contact on the specified app.
-4. Use finish to confirm: "Auto-reply is active for [contact] on [app]."
+Supported compatibility fields:
 
-## Example
+- `id`: Optional explicit ID. If omitted, PokeClaw derives the ID from `name` or
+  the folder name.
+- `tools`: Legacy alias for `allowed-tools`.
 
-User: "Monitor Mom on WhatsApp and auto-reply for me"
-→ auto_reply(contact="Mom", app="WhatsApp")
-→ finish("Auto-reply enabled for Mom on WhatsApp")
+## Runtime Behavior
 
-## If something goes wrong
+On each user request, PokeClaw:
 
-- If accessibility is not enabled: tell the user to enable it in Settings.
-- If the contact name is ambiguous: ask which contact they mean.
+1. Loads all skills from assets and user skill directories.
+2. Builds a compact list of available skill descriptions.
+3. Selects an explicit `/skill-id` invocation or the best matching skill by the
+   current request text.
+4. Injects the selected skill's Markdown body into the model prompt.
+
+Cloud task models, local task models, cloud chat, and local chat all receive the
+same skill context. If no skill clearly matches, only the compact skill index is
+included and the model should continue normally.
+
+## Tool Names
+
+Use PokeClaw tool identifiers in `allowed-tools`, for example:
+
+```text
+open_app, get_screen_info, tap, tap_node, input_text, system_key, swipe,
+scroll_to_find, find_and_tap, send_message, auto_reply, get_notifications,
+clipboard, get_device_info, get_installed_apps, take_screenshot, wait, finish
 ```
 
-### open-app.skill.md
+Unknown tools produce a warning in logs but do not stop the skill from loading.
+This makes it possible to share Claude Code skills that mention non-PokeClaw
+tools while still using their Markdown instructions.
 
-```markdown
----
-description: Open an app by name, e.g. "open Chrome" or "launch Settings"
-tools: open_app, finish
----
+## Authoring Guidance
 
-# Open App
-
-Open an application on the device.
-
-## Steps
-
-1. From the user's request, identify:
-   - **app**: which app to open
-2. Use open_app to launch it.
-3. Confirm: "Opened [app]."
-
-## Example
-
-User: "Open YouTube"
-→ open_app("YouTube")
-→ "Opened YouTube."
-
-## If something goes wrong
-
-- If the app is not found: "I couldn't find an app called [name]. Could you check the name?"
-```
-
-### list-skills.skill.md
-
-```markdown
----
-description: Show what skills are available, e.g. "what can you do?" or "help"
-tools: list_skills
----
-
-# List Skills
-
-Tell the user what skills are available.
-
-## Steps
-
-1. Use list_skills to get the current list of installed skills.
-2. Present each skill with its name and a short description.
-3. Ask if the user wants to try any of them.
-
-## Example
-
-User: "What can you do?"
-→ list_skills()
-→ "Here's what I can help with:
-   - Send Message: text someone on WhatsApp, Telegram, etc.
-   - Monitor Reply: auto-reply to incoming messages
-   - Open App: launch any app
-   Want to try any of these?"
-```
+- Keep the body short and operational: roughly 250-500 tokens.
+- Put routing intent in `description`, not only in the title.
+- Start with parameter extraction and ask for missing required details.
+- Prefer PokeClaw's direct tools when available.
+- Do not include secrets or private data in skill files.

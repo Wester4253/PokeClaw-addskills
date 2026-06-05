@@ -11,6 +11,7 @@ import dev.langchain4j.data.message.AiMessage
 import dev.langchain4j.data.message.SystemMessage
 import dev.langchain4j.data.message.UserMessage
 import io.agents.pokeclaw.agent.ModelPricing
+import io.agents.pokeclaw.agent.skill.PromptSkillManager
 import io.agents.pokeclaw.agent.llm.LlmClient
 import io.agents.pokeclaw.agent.llm.LlmSessionManager
 import io.agents.pokeclaw.agent.llm.LocalModelManager
@@ -314,9 +315,22 @@ class ChatSessionController(
             try {
                 if (cloudClient != null) {
                     ensureCloudHistoryInitialized()
-                    cloudHistory.add(UserMessage.from(text))
-                    val llmResponse = cloudClient!!.chat(cloudHistory, emptyList())
+                    val skillSection = PromptSkillManager.buildPromptSection(text)
+                    val requestMessages = if (skillSection.isBlank()) {
+                        cloudHistory + UserMessage.from(text)
+                    } else {
+                        val historyWithSkill = cloudHistory.toMutableList()
+                        val firstSystem = historyWithSkill.firstOrNull() as? SystemMessage
+                        if (firstSystem != null) {
+                            historyWithSkill[0] = SystemMessage.from("${firstSystem.text()}$skillSection")
+                        } else {
+                            historyWithSkill.add(0, SystemMessage.from(skillSection))
+                        }
+                        historyWithSkill + UserMessage.from(text)
+                    }
+                    val llmResponse = cloudClient!!.chat(requestMessages, emptyList())
                     val responseText = llmResponse.text ?: "(no response)"
+                    cloudHistory.add(UserMessage.from(text))
                     cloudHistory.add(AiMessage.from(responseText))
                     val usage = llmResponse.tokenUsage
                     val inputTokens = usage?.inputTokenCount() ?: (text.length / 4 + 1)
@@ -336,7 +350,13 @@ class ChatSessionController(
                     if (currentConversation == null || !isModelReady) {
                         throw IllegalStateException("Local model is still loading. Try again in a moment.")
                     }
-                    val response = currentConversation.sendMessage(text)
+                    val skillSection = PromptSkillManager.buildPromptSection(text)
+                    val promptText = if (skillSection.isBlank()) {
+                        text
+                    } else {
+                        "$skillSection\n\nCurrent user message:\n$text"
+                    }
+                    val response = currentConversation.sendMessage(promptText)
                     val responseText = response?.toString() ?: "(no response)"
                     val inputTokensEst = text.length / 4 + 1
                     val outputTokensEst = responseText.length / 4 + 1
